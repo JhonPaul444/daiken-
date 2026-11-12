@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f5f6f2" />
+  <title>Daylist — a small tasks demo</title>
+  <style>
+    :root { color-scheme: light; --ink:#20251f; --muted:#747b72; --line:#e8eae4; --green:#356b4a; --paper:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:#f5f6f2; color:var(--ink); font:15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button,input { font:inherit; }
+    .shell { max-width:1020px; margin:auto; padding:28px 32px 56px; }
+    header { display:flex; align-items:center; justify-content:space-between; margin-bottom:58px; }
+    .brand { display:flex; gap:10px; align-items:center; font-weight:700; letter-spacing:-.03em; }
+    .mark { width:30px; height:30px; border-radius:10px; display:grid; place-items:center; color:#fff; background:var(--green); font-size:16px; }
+    .demo-tag { color:#59665a; border:1px solid #dfe5dc; border-radius:99px; padding:6px 11px; font-size:12px; font-weight:600; }
+    .intro { max-width:610px; margin:0 auto 30px; text-align:center; }
+    .eyebrow { color:var(--green); text-transform:uppercase; letter-spacing:.13em; font-size:11px; font-weight:750; }
+    h1 { margin:10px 0 9px; font-size:clamp(34px,6vw,52px); line-height:1.08; letter-spacing:-.055em; }
+    .intro p { color:var(--muted); margin:0; font-size:16px; }
+    .workspace { max-width:690px; margin:auto; border:1px solid var(--line); border-radius:18px; background:var(--paper); box-shadow:0 14px 45px #25341f0a; overflow:hidden; }
+    .workspace-top { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:22px 24px 16px; }
+    h2 { font-size:17px; margin:0; letter-spacing:-.02em; }
+    .count { font-size:12px; color:var(--muted); }
+    .add-form { display:flex; gap:9px; padding:0 24px 19px; }
+    .add-form input { flex:1; min-width:0; border:1px solid #e3e6df; border-radius:10px; padding:11px 13px; outline:none; color:var(--ink); background:#fff; }
+    .add-form input:focus { border-color:#88a891; box-shadow:0 0 0 3px #356b4a16; }
+    .add-form input::placeholder { color:#a1a69f; }
+    .add-form button { border:0; border-radius:10px; padding:0 17px; color:white; background:var(--green); font-weight:650; cursor:pointer; }
+    .add-form button:hover { background:#28553a; }
+    .tasks { list-style:none; margin:0; padding:0 24px 12px; }
+    .task { display:flex; align-items:center; gap:12px; padding:14px 2px; border-top:1px solid #f0f1ed; }
+    .check { flex:none; width:19px; height:19px; border:1.5px solid #cbd1c8; border-radius:50%; display:grid; place-items:center; padding:0; background:white; cursor:pointer; color:white; }
+    .task.done .check { border-color:var(--green); background:var(--green); }
+    .check svg { width:12px; height:12px; }
+    .task-label { flex:1; }
+    .task.done .task-label { color:#9aa097; text-decoration:line-through; }
+    .remove { border:0; background:transparent; color:#a0a69e; cursor:pointer; font-size:19px; line-height:1; padding:5px; opacity:0; }
+    .task:hover .remove,.remove:focus-visible { opacity:1; }
+    .empty { padding:22px 0; color:var(--muted); text-align:center; border-top:1px solid #f0f1ed; }
+    footer { margin-top:17px; text-align:center; color:#92988f; font-size:12px; }
+    @media (max-width:600px) { .shell{padding:20px 16px 40px} header{margin-bottom:45px} .workspace-top{padding:19px 17px 14px} .add-form{padding:0 17px 16px} .tasks{padding:0 17px 10px} .remove{opacity:1} }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand"><span class="mark" aria-hidden="true">✓</span> daylist</div>
+      <span class="demo-tag">Simple demo</span>
+    </header>
+    <section class="intro" aria-labelledby="title">
+      <div class="eyebrow">A little room to focus</div>
+      <h1 id="title">Make today feel lighter.</h1>
+      <p>A simple task list to help you keep the next thing in view.</p>
+    </section>
+    <section class="workspace" aria-label="Your tasks">
+      <div class="workspace-top"><h2>Today</h2><span class="count" id="count" aria-live="polite"></span></div>
+      <form class="add-form" id="add-form">
+        <input id="new-task" type="text" placeholder="Add a task…" aria-label="New task" maxlength="100" autocomplete="off" />
+        <button type="submit">Add task</button>
+      </form>
+      <ul class="tasks" id="tasks"></ul>
+    </section>
+    <footer>Your list stays in this browser while you explore the demo.</footer>
+  </main>
+  <script>
+    const starterTasks = [
+      { text: "Review the project notes", done: true },
+      { text: "Sketch the first idea", done: false },
+      { text: "Share an update with the team", done: false }
+    ];
+    let tasks;
+    try { tasks = JSON.parse(localStorage.getItem("daylist-tasks")) ?? starterTasks; }
+    catch { tasks = starterTasks; }
+    const list = document.querySelector("#tasks");
+    const count = document.querySelector("#count");
+    const checkIcon = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8 3 3 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    function save() { localStorage.setItem("daylist-tasks", JSON.stringify(tasks)); }
+    function render() {
+      list.replaceChildren();
+      const remaining = tasks.filter(task => !task.done).length;
+      count.textContent = remaining ? `${remaining} left` : "All caught up";
+      if (!tasks.length) {
+        const empty = document.createElement("li"); empty.className = "empty"; empty.textContent = "Nothing on your list yet. Add a task to get started."; list.append(empty); return;
+      }
+      tasks.forEach((task, index) => {
+        const row = document.createElement("li"); row.className = `task${task.done ? " done" : ""}`;
+        const toggle = document.createElement("button"); toggle.className = "check"; toggle.type = "button"; toggle.setAttribute("aria-label", task.done ? "Mark incomplete" : "Mark complete"); toggle.innerHTML = task.done ? checkIcon : "";
+        toggle.addEventListener("click", () => { tasks[index].done = !tasks[index].done; save(); render(); });
+        const label = document.createElement("span"); label.className = "task-label"; label.textContent = task.text;
+        const remove = document.createElement("button"); remove.className = "remove"; remove.type = "button"; remove.setAttribute("aria-label", `Delete ${task.text}`); remove.textContent = "×";
+        remove.addEventListener("click", () => { tasks.splice(index, 1); save(); render(); });
+        row.append(toggle, label, remove); list.append(row);
+      });
+    }
+    document.querySelector("#add-form").addEventListener("submit", event => {
+      event.preventDefault();
+      const input = document.querySelector("#new-task");
+      const text = input.value.trim();
+      if (!text) { input.focus(); return; }
+      tasks.unshift({ text, done: false }); save(); render(); input.value = ""; input.focus();
+    });
+    render();
+  </script>
+</body>
+</html>
